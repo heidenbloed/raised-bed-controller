@@ -15,6 +15,7 @@
 #define HIGHER_TIMER_FREQ
 //#define USE_INTERRUPTS_FOR_BUTTONS
 #define WATER_AFTER_BOOT
+#define CTRL_WATER_TIME_VIA_POTI
 
 const int ledWaterPin = 0;
 const int ledRefillPin = 1;
@@ -36,13 +37,13 @@ const int moistureSensorPowerPin = A2;
 const int potiPin = A3;
 
 #ifdef DEBUGGING_VALUES
-const int moistureMeasuringIntervalInSeconds = 20;
-const uint32_t pumpWateringPeriod = 2*1000L;
+const int moistureMeasuringIntervalInSeconds = 20; // every 20 seconds
 #else
-const int moistureMeasuringIntervalInSeconds = 60*60; //every hour
-const uint32_t pumpWateringPeriod = 45*1000L; //45 seconds
+const int moistureMeasuringIntervalInSeconds = 60*60; // every hour
 #endif
 const int pumpWarmupPeriod = 250;
+const int minWateringPeriodSeconds = 1; // 1 second
+const int maxWateringPeriodSeconds = 15*60; // 15 minutes
 const int refillCheckDelay = 1500;
 const int minPumpVal = 130;
 const int numMoistureReadings = 5;
@@ -57,15 +58,17 @@ const int tftMargin = 3;
 const int tftTimeBarHeight = 14;
 
 uint32_t lastClockUpdate = 0L;
-float currentPumpVoltage = 0.0;
+float currentPumpVoltage = 12.0;
 uint32_t lastMoistureMeasurement = 0L;
 uint32_t wateringStart = 0L;
 uint32_t nextWateringTime = 0L;
 #ifndef RADIO
 #ifdef DEBUGGING_VALUES
 uint32_t wateringIntervalInSeconds = 60L; // once per minute
+uint32_t pumpWateringPeriod = 2*1000L; // 2 seconds
 #else
 uint32_t wateringIntervalInSeconds = 86400L; // once per day
+uint32_t currentWateringPeriod = 2*60*1000L; // 2 minutes
 #endif
 #endif
 bool nextWateringValid = false;
@@ -115,7 +118,7 @@ DateTime datetime;
 void initTft();
 void handleRadioMsg(uint32_t nowUnix);
 void logMoistureValue();
-void updatePumpVoltage();
+void updatePotiValue();
 void initWatering(bool manual);
 void wateringLoop(const float progress);
 void endWatering();
@@ -129,8 +132,8 @@ void updateTftNextWatering(const char* nextWatering);
 void updateTftNextWateringProgress(const float progress);
 void updateTftMoisture(const char* moistureLevel);
 void updateTftMoistureProgress(const float progress);
-void updateTftPumpVoltage(const char* pumpVoltage);
-void updateTftPumpVoltageBar(const float bar);
+void updateTftPoti(const char* potiValue);
+void updateTftPotiBar(const float bar);
 void updateTftTime(const char* timeStr);
 void updateTftCurrent(const char* currentStr);
 void tankRefillISR();
@@ -249,7 +252,11 @@ void initTft()
 	tft.setCursor(tftMargin, tftHeight / 2 + tftMargin - tftTimeBarHeight / 2);
 	tft.println("MOISTURE");
 	tft.setCursor(tftWidth / 2 + tftMargin, tftHeight / 2 + tftMargin - tftTimeBarHeight / 2);
+#ifdef CTRL_WATER_TIME_VIA_POTI
+  tft.println("WATERING TIME");
+#else 
 	tft.println("PUMP VOLTAGE");
+#endif
 
 	tft.setTextSize(tftValueTextSize);
 	tft.setCursor(tftMargin, tftHeight / 4 - 3.5 * tftValueTextSize);
@@ -324,7 +331,7 @@ void loop()
 		initWatering(false);
 	}
 
-	updatePumpVoltage();
+	updatePotiValue();
 
 	if (watering)
 	{
@@ -333,9 +340,9 @@ void loop()
 		Serial.print("currentWateringMillis=");
 		Serial.println(currentWateringMillis);
 #endif
-		if (currentWateringMillis < pumpWateringPeriod)
+		if (currentWateringMillis < currentWateringPeriod)
 		{
-			const float progress = (float)currentWateringMillis / pumpWateringPeriod;
+			const float progress = (float)currentWateringMillis / currentWateringPeriod;
 			wateringLoop(progress);
 		}
 		else
@@ -572,31 +579,50 @@ void logMoistureValue()
 #endif
 }
 
-void updatePumpVoltage()
+void updatePotiValue()
 {
-	int potiValue = analogRead(potiPin);
-	float pumpVoltageBar = 1.1 * potiValue / 1024.0;
-	float pumpVoltage = 12.0 * minPumpVal * (1 + pumpVoltageBar * (255.0 / minPumpVal - 1)) / 255.0;
-	if (pumpVoltage > 12.0)
+	int potiAnalogValue = analogRead(potiPin);
+	float potiRelativeValue = 1.1 * potiAnalogValue / 1024.0;
+
+#ifdef CTRL_WATER_TIME_VIA_POTI
+	int minValue = minWateringPeriodSeconds;
+	int maxValue = maxWateringPeriodSeconds;
+#else
+	float minValue = 12.0 * minPumpVal / 255.0;
+	float maxValue = 12.0;
+#endif
+
+	float value = (maxValue - minValue) * potiRelativeValue + minValue;
+	if (value > maxValue)
 	{
-		pumpVoltageBar = 1.0;
-		pumpVoltage = 12.0;
+		potiRelativeValue = 1.0;
+		value = maxValue;
 	}
-	if (abs(currentPumpVoltage - pumpVoltage) > 0.05)
+	
+
+#ifdef CTRL_WATER_TIME_VIA_POTI
+	uint32_t wateringPeriod = value * 1000L;
+	bool valueChanged = abs(currentWateringPeriod - wateringPeriod) > 5000L;
+#else
+	bool valueChanged = abs(currentPumpVoltage - value) > 0.05;
+#endif
+
+	if (valueChanged)
 	{
-//#ifdef SERIAL_DEBUGGING
-//		Serial.print("Poti value=");
-//		Serial.println(potiValue);
-//		Serial.print("Pump voltage=");
-//		Serial.println(pumpVoltage);
-//#endif
-		char voltageStr[50];
-		int voltageInt = int(pumpVoltage);
-		int voltageDec = int(pumpVoltage * 100) % 100;
-		sprintf(voltageStr, "%d.%d", voltageInt, voltageDec);
-		updateTftPumpVoltage(voltageStr);
-		updateTftPumpVoltageBar(pumpVoltageBar);
-		currentPumpVoltage = pumpVoltage;
+		char potiStr[50];
+#ifdef CTRL_WATER_TIME_VIA_POTI
+		int wateringPeriodMinutes = wateringPeriod / (60*1000L);
+		int wateringPeriodSeconds = (wateringPeriod / 1000L) % 60;
+		sprintf(potiStr, "%dm%ds", wateringPeriodMinutes, wateringPeriodSeconds);
+		currentWateringPeriod = wateringPeriod;
+#else
+		int voltageInt = int(value);
+		int voltageDec = int(value * 100) % 100;
+		sprintf(potiStr, "%d.%dV", voltageInt, voltageDec);
+		currentPumpVoltage = value;
+#endif
+		updateTftPoti(potiStr);
+		updateTftPotiBar(potiRelativeValue);
 	}
 }
 
@@ -905,22 +931,22 @@ void updateTftMoistureProgress(const float progress)
 	tft.fillRect(progessbarWidth + 1, tftHeight - tftTimeBarHeight - 10, tftWidth / 2 - progessbarWidth - 1, 5, ILI9341_BLUE);
 }
 
-void updateTftPumpVoltage(const char pumpVoltage[])
+void updateTftPoti(const char potiStr[])
 {
 #ifdef SERIAL_DEBUGGING
-//	Serial.print("TFT: set pump voltage to ");
-//	Serial.println(pumpVoltage);
+//	Serial.print("TFT: set poti str to ");
+//	Serial.println(potiStr);
 #endif
 	tft.fillRect(tftWidth / 2, 3 * tftHeight / 4 - 3.5 * tftValueTextSize, tftWidth / 2, 8 * tftValueTextSize, ILI9341_PURPLE);
 	tft.setTextSize(tftValueTextSize);
 	tft.setCursor(tftWidth / 2 + tftMargin, 3 * tftHeight / 4 - 3.5 * tftValueTextSize);
-	tft.println(pumpVoltage);
+	tft.println(potiStr);
 }
 
-void updateTftPumpVoltageBar(const float bar)
+void updateTftPotiBar(const float bar)
 {
 #ifdef SERIAL_DEBUGGING
-	Serial.print("TFT: set pump voltage bar to ");
+	Serial.print("TFT: set poti bar to ");
 	Serial.println(bar);
 #endif
 	int barWidth = bar * tftWidth / 2;
