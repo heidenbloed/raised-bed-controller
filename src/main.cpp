@@ -8,12 +8,12 @@
 #include <Adafruit_INA219.h>
 #include "RTClib.h"
 
-//#define SERIAL_DEBUGGING
-//#define POWER_VIA_USB
-//#define DEBUGGING_VALUES
-//#define RADIO
+// #define SERIAL_DEBUGGING
+// #define POWER_VIA_USB
+// #define DEBUGGING_VALUES
+// #define RADIO
 #define HIGHER_TIMER_FREQ
-//#define USE_INTERRUPTS_FOR_BUTTONS
+// #define USE_INTERRUPTS_FOR_BUTTONS
 #define WATER_AFTER_BOOT
 #define CTRL_WATER_TIME_VIA_POTI
 
@@ -39,11 +39,11 @@ const int potiPin = A3;
 #ifdef DEBUGGING_VALUES
 const int moistureMeasuringIntervalInSeconds = 20; // every 20 seconds
 #else
-const int moistureMeasuringIntervalInSeconds = 60*60; // every hour
+const int moistureMeasuringIntervalInSeconds = 60 * 60; // every hour
 #endif
 const int pumpWarmupPeriod = 250;
-const int minWateringPeriodSeconds = 1; // 1 second
-const int maxWateringPeriodSeconds = 15*60; // 15 minutes
+const int minWateringPeriodSeconds = 1;		  // 1 second
+const int maxWateringPeriodSeconds = 15 * 60; // 15 minutes
 const int refillCheckDelay = 1500;
 const int minPumpVal = 130;
 const int numMoistureReadings = 5;
@@ -65,10 +65,10 @@ uint32_t nextWateringTime = 0L;
 #ifndef RADIO
 #ifdef DEBUGGING_VALUES
 uint32_t wateringIntervalInSeconds = 60L; // once per minute
-uint32_t pumpWateringPeriod = 2*1000L; // 2 seconds
+uint32_t pumpWateringPeriod = 2 * 1000L;  // 2 seconds
 #else
-uint32_t wateringIntervalInSeconds = 86400L; // once per day
-uint32_t currentWateringPeriod = 2*60*1000L; // 2 minutes
+uint32_t wateringIntervalInSeconds = 86400L;	 // once per day
+uint32_t currentWateringPeriod = 2 * 60 * 1000L; // 2 minutes
 #endif
 #endif
 bool nextWateringValid = false;
@@ -94,10 +94,10 @@ const float tankFullIntercept = -122.62657410119039 - 300.0;
 const float tankEmptySlope = 1.779161939543686;
 const float tankEmptyIntercept = 133.7240951609847 - 300.0;
 #else
-const float tankFullSlope=4.217734374999999;
-const float tankFullIntercept=-115.65226562499993;
-const float tankEmptySlope=2.2445312499999996;
-const float tankEmptyIntercept=69.94453125000007;
+const float tankFullSlope = 4.217734374999999;
+const float tankFullIntercept = -115.65226562499993;
+const float tankEmptySlope = 2.2445312499999996;
+const float tankEmptyIntercept = 69.94453125000007;
 #endif
 const float displayCurrentConsumption = 80.0;
 
@@ -114,7 +114,6 @@ Adafruit_INA219 ina219;
 RTC_DS3231 ds3231;
 DateTime datetime;
 
-
 void initTft();
 void handleRadioMsg(uint32_t nowUnix);
 void logMoistureValue();
@@ -125,20 +124,19 @@ void endWatering();
 void updateCurrentTankStatus(int currentPumpVal);
 void checkIfTankWasRefilled();
 void updateClockAndWateringTimeAndMoistureBar(DateTime now, uint32_t nextWateringTime);
-void sendViaRadio(const char* msg);
-void updateTftStatus(const char* status);
+void sendViaRadio(const char *msg);
+void updateTftStatus(const char *status);
 void updateTftStatusProgress(const float progress);
-void updateTftNextWatering(const char* nextWatering);
+void updateTftNextWatering(const char *nextWatering);
 void updateTftNextWateringProgress(const float progress);
-void updateTftMoisture(const char* moistureLevel);
+void updateTftMoisture(const char *moistureLevel);
 void updateTftMoistureProgress(const float progress);
-void updateTftPoti(const char* potiValue);
+void updateTftPoti(const char *potiValue);
 void updateTftPotiBar(const float bar);
-void updateTftTime(const char* timeStr);
-void updateTftCurrent(const char* currentStr);
+void updateTftTime(const char *timeStr);
+void updateTftCurrent(const char *currentStr);
 void tankRefillISR();
 void manualWateringISR();
-
 
 void setup()
 {
@@ -150,8 +148,8 @@ void setup()
 	Serial.begin(9600);
 	Serial.println("Begin setup");
 #else
-    pinMode(ledRefillPin, OUTPUT);
-    pinMode(ledWaterPin, OUTPUT);
+	pinMode(ledRefillPin, OUTPUT);
+	pinMode(ledWaterPin, OUTPUT);
 #endif
 	pinMode(btnRefillPin, INPUT_PULLUP);
 	pinMode(btnWateringPin, INPUT_PULLUP);
@@ -174,18 +172,20 @@ void setup()
 #endif
 	radio.begin();
 	radio.setChannel(0);
-	if(!radio.setDataRate(RF24_250KBPS)){
+	if (!radio.setDataRate(RF24_250KBPS))
+	{
 #ifdef SERIAL_DEBUGGING
 		Serial.println("Warning: Could not set radio data rate successful.");
 #endif
 	}
 	radio.setAutoAck(true);
-	//radio.enableDynamicPayloads();
+	// radio.enableDynamicPayloads();
 	radio.setCRCLength(RF24_CRC_16);
 	radio.setPALevel(RF24_PA_LOW);
 	radio.setPayloadSize(32);
-	//radio.setRetries(15, 15);
-	if(!radio.isPVariant()){
+	// radio.setRetries(15, 15);
+	if (!radio.isPVariant())
+	{
 #ifdef SERIAL_DEBUGGING
 		Serial.println("Warning: The radio is not a nRF24L01+ radio.");
 #endif
@@ -214,13 +214,13 @@ void setup()
 #endif
 
 #ifndef SERIAL_DEBUGGING
-    digitalWrite(ledRefillPin, LOW);
-    digitalWrite(ledWaterPin, LOW);
+	digitalWrite(ledRefillPin, LOW);
+	digitalWrite(ledWaterPin, LOW);
 #endif
 	digitalWrite(moistureSensorPowerPin, LOW);
 	digitalWrite(tftLedPin, LOW);
 
-	const char* statusStr = "Idle";
+	const char *statusStr = "Idle";
 	updateTftStatus(statusStr);
 
 #ifdef WATER_AFTER_BOOT
@@ -253,8 +253,8 @@ void initTft()
 	tft.println("MOISTURE");
 	tft.setCursor(tftWidth / 2 + tftMargin, tftHeight / 2 + tftMargin - tftTimeBarHeight / 2);
 #ifdef CTRL_WATER_TIME_VIA_POTI
-  tft.println("WATERING TIME");
-#else 
+	tft.println("WATERING TIME");
+#else
 	tft.println("PUMP VOLTAGE");
 #endif
 
@@ -280,9 +280,9 @@ void initTft()
 uint32_t freq_millis()
 {
 #ifdef HIGHER_TIMER_FREQ
-	return (uint32_t) millis() / 8;
+	return (uint32_t)millis() / 8;
 #else
-	return (uint32_t) millis();
+	return (uint32_t)millis();
 #endif
 }
 
@@ -306,7 +306,8 @@ void loop()
 		handleRadioMsg(nowUnix);
 	}
 #else
-	if (!nextWateringValid){
+	if (!nextWateringValid)
+	{
 		nextWateringValid = true;
 		nextWateringTime = nowUnix + wateringIntervalInSeconds;
 	}
@@ -317,7 +318,6 @@ void loop()
 		lastClockUpdate = nowUnix;
 		updateClockAndWateringTimeAndMoistureBar(now, nextWateringTime);
 	}
-
 
 	if (nowUnix - lastMoistureMeasurement > moistureMeasuringIntervalInSeconds)
 	{
@@ -434,7 +434,7 @@ void handleRadioMsg(uint32_t nowUnix)
 #endif
 	char command[len + 1];
 	radio.read(&command, len);
-	//radio.flush_rx();
+	// radio.flush_rx();
 	command[len + 1] = 0;
 #ifdef SERIAL_DEBUGGING
 	Serial.print(" and payload=");
@@ -477,11 +477,11 @@ void handleRadioMsg(uint32_t nowUnix)
 		else
 		{
 			Serial.println("else...");
-			//int i = 0;
-			//bool testNextWateringValid = true;
-			//uint32_t testNextWateringTime = nextWateringReceived;
-			//Serial.println(testNextWateringValid);
-			//Serial.println(testNextWateringTime);
+			// int i = 0;
+			// bool testNextWateringValid = true;
+			// uint32_t testNextWateringTime = nextWateringReceived;
+			// Serial.println(testNextWateringValid);
+			// Serial.println(testNextWateringTime);
 		}
 
 		/*if (rtiitp)
@@ -546,7 +546,6 @@ void handleRadioMsg(uint32_t nowUnix)
 }
 #endif
 
-
 void logMoistureValue()
 {
 	digitalWrite(moistureSensorPowerPin, HIGH);
@@ -598,7 +597,6 @@ void updatePotiValue()
 		potiRelativeValue = 1.0;
 		value = maxValue;
 	}
-	
 
 #ifdef CTRL_WATER_TIME_VIA_POTI
 	uint32_t wateringPeriod = value * 1000L;
@@ -611,7 +609,7 @@ void updatePotiValue()
 	{
 		char potiStr[50];
 #ifdef CTRL_WATER_TIME_VIA_POTI
-		int wateringPeriodMinutes = wateringPeriod / (60*1000L);
+		int wateringPeriodMinutes = wateringPeriod / (60 * 1000L);
 		int wateringPeriodSeconds = (wateringPeriod / 1000L) % 60;
 		sprintf(potiStr, "%dm%ds", wateringPeriodMinutes, wateringPeriodSeconds);
 		currentWateringPeriod = wateringPeriod;
@@ -635,7 +633,7 @@ void initWatering(bool manual)
 	if (tankIsEmpty)
 	{
 #ifdef RADIO
-		const char* msg = "[watering] skip";
+		const char *msg = "[watering] skip";
 		sendViaRadio(msg);
 #endif
 #ifdef SERIAL_DEBUGGING
@@ -644,7 +642,7 @@ void initWatering(bool manual)
 	}
 	else
 	{
-		if(manual)
+		if (manual)
 		{
 			updateTftStatus("mWater");
 		}
@@ -655,19 +653,19 @@ void initWatering(bool manual)
 #ifdef RADIO
 		if (manual)
 		{
-			const char* msg = "[watering] manual";
+			const char *msg = "[watering] manual";
 			sendViaRadio(msg);
 		}
 		else
 		{
-			const char* msg = "[watering] start";
+			const char *msg = "[watering] start";
 			sendViaRadio(msg);
 		}
 #endif
 #ifdef SERIAL_DEBUGGING
 		Serial.println("Start pump warm up period");
 #else
-      digitalWrite(ledWaterPin, HIGH);
+		digitalWrite(ledWaterPin, HIGH);
 #endif
 		analogWrite(pumpPin, 255);
 		freq_delay(pumpWarmupPeriod);
@@ -704,10 +702,10 @@ void wateringLoop(const float progress)
 #endif
 		endWatering();
 #ifdef RADIO
-		const char* msg = "[tank] empty";
+		const char *msg = "[tank] empty";
 		sendViaRadio(msg);
 #endif
-		const char* statusStr = "Empty";
+		const char *statusStr = "Empty";
 		updateTftStatus(statusStr);
 	}
 }
@@ -719,12 +717,12 @@ void endWatering()
 #ifdef SERIAL_DEBUGGING
 	Serial.println("End watering period");
 #else
-    digitalWrite(ledWaterPin, LOW);
+	digitalWrite(ledWaterPin, LOW);
 #endif
 	updateTftStatus("Idle");
 	updateTftStatusProgress(0.0);
 #ifdef RADIO
-	const char* msg = "[watering] end";
+	const char *msg = "[watering] end";
 	sendViaRadio(msg);
 #endif
 }
@@ -732,7 +730,7 @@ void endWatering()
 void updateCurrentTankStatus(int currentPumpVal)
 {
 	float currentMeasurement = 0.0;
-	for (int i=0; i<5; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		currentMeasurement += ina219.getCurrent_mA() / 5.0;
 		freq_delay(5);
@@ -790,10 +788,10 @@ void checkIfTankWasRefilled()
 #ifndef SERIAL_DEBUGGING
 		digitalWrite(ledRefillPin, LOW);
 #endif
-		const char* statusStr = "Idle";
+		const char *statusStr = "Idle";
 		updateTftStatus(statusStr);
 #ifdef RADIO
-		const char* msg = "[tank] refilled";
+		const char *msg = "[tank] refilled";
 		sendViaRadio(msg);
 #endif
 	}
@@ -851,9 +849,10 @@ void sendViaRadio(const char msg[])
 	Serial.println(strlen(msgCopy));
 
 #endif
-	//Serial.println("Send message via radio was not successful.");
+	// Serial.println("Send message via radio was not successful.");
 	radio.stopListening();
-	if(!radio.write(&msgCopy, strlen(msgCopy))){
+	if (!radio.write(&msgCopy, strlen(msgCopy)))
+	{
 #ifdef SERIAL_DEBUGGING
 		Serial.println("Send message via radio was not successful.");
 #endif
@@ -960,21 +959,21 @@ void updateTftTime(const char timeStr[])
 //	Serial.print("TFT: set time to ");
 //	Serial.println(timeStr);
 #endif
-	tft.fillRect(0, tftHeight - tftTimeBarHeight, tftWidth/2, tftTimeBarHeight, ILI9341_BLACK);
+	tft.fillRect(0, tftHeight - tftTimeBarHeight, tftWidth / 2, tftTimeBarHeight, ILI9341_BLACK);
 	tft.setTextSize(tftTimeTextSize);
 	tft.setCursor(tftMargin, tftHeight - tftTimeBarHeight + tftMargin);
 	tft.println(timeStr);
 }
 
-void updateTftCurrent(const char* currentStr)
+void updateTftCurrent(const char *currentStr)
 {
 #ifdef SERIAL_DEBUGGING
 //	Serial.print("TFT: set current to ");
 //	Serial.println(currentStr);
 #endif
-	tft.fillRect(tftWidth/2, tftHeight - tftTimeBarHeight, tftWidth, tftTimeBarHeight, ILI9341_BLACK);
+	tft.fillRect(tftWidth / 2, tftHeight - tftTimeBarHeight, tftWidth, tftTimeBarHeight, ILI9341_BLACK);
 	tft.setTextSize(tftTimeTextSize);
-	tft.setCursor(tftMargin + tftWidth/2, tftHeight - tftTimeBarHeight + tftMargin);
+	tft.setCursor(tftMargin + tftWidth / 2, tftHeight - tftTimeBarHeight + tftMargin);
 	tft.println(currentStr);
 }
 
