@@ -14,7 +14,7 @@
 // #define RADIO
 #define HIGHER_TIMER_FREQ
 // #define USE_INTERRUPTS_FOR_BUTTONS
-#define WATER_AFTER_BOOT
+// #define WATER_AFTER_BOOT
 #define CTRL_WATER_TIME_VIA_POTI
 
 const int ledWaterPin = 0;
@@ -45,7 +45,7 @@ const int pumpWarmupPeriod = 250;
 const int minWateringPeriodSeconds = 1;		  // 1 second
 const int maxWateringPeriodSeconds = 15 * 60; // 15 minutes
 const int refillCheckDelay = 1500;
-const int minPumpVal = 130;
+const int minPumpVal = 100;
 const int numMoistureReadings = 5;
 const int moistureSettleInterval = 100;
 
@@ -58,7 +58,7 @@ const int tftMargin = 3;
 const int tftTimeBarHeight = 14;
 
 uint32_t lastClockUpdate = 0L;
-float currentPumpVoltage = 12.0;
+float currentPumpVoltage = 8.5;
 uint32_t lastMoistureMeasurement = 0L;
 uint32_t wateringStart = 0L;
 uint32_t nextWateringTime = 0L;
@@ -89,15 +89,15 @@ int currentTankStatus = TANK_UNDECIDED;
 const int minPumpValForTankDecision = 100;
 
 #ifdef POWER_VIA_USB
-const float tankFullSlope = 4.902077801266418;
-const float tankFullIntercept = -122.62657410119039 - 300.0;
-const float tankEmptySlope = 1.779161939543686;
-const float tankEmptyIntercept = 133.7240951609847 - 300.0;
+const float tankFullSlope = 8.666666666666663;
+const float tankFullIntercept = -259.9999999999991 - 300.0;
+const float tankEmptySlope = 0.6666666666666666;
+const float tankEmptyIntercept = 530.0 - 300.0;
 #else
-const float tankFullSlope = 4.217734374999999;
-const float tankFullIntercept = -115.65226562499993;
-const float tankEmptySlope = 2.2445312499999996;
-const float tankEmptyIntercept = 69.94453125000007;
+const float tankFullSlope = 8.666666666666663;
+const float tankFullIntercept = -259.9999999999991;
+const float tankEmptySlope = 0.6666666666666666;
+const float tankEmptyIntercept = 530.0;
 #endif
 const float displayCurrentConsumption = 80.0;
 
